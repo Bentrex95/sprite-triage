@@ -52,11 +52,7 @@ The reported status (`running`, `warm`, `cold`) is shown but never used: stuck S
 
 ## Measured on real Sprites
 
-On 20 October 2026 an earlier version ran against Sprites created for the test in a trial organization:
-
-- 26 triages of fresh Sprites: all healthy.
-- After a quiet period, the first `/check` answered HTTP 200 with `{"status": "needs_repair", "reason": "machine in suspended state"}` in 18 of 18 cases on seven Sprites, while `true` inside ran (in 0.9 to 11 s). Two minutes later all 18 were healthy ([table](docs/measurements.md)). That version reported these as `unknown` with a support note: 18 false alarms. Now the command inside decides, and they are `ok`. I could not find this answer in the Sprites docs, the OpenAPI spec or the Elixir SDK.
-- Separately, a process holding a random value in memory survived a 30-minute pause with the same PID and boot id, while three other Sprites were reported `cold` without pausing at all. So `cold` says neither that a Sprite paused nor that its memory is gone.
+On 20 October 2026 an earlier version ran against Sprites created for the test in a trial organization. After a quiet period, the first `/check` answered HTTP 200 with `{"status": "needs_repair", "reason": "machine in suspended state"}` in 18 of 18 cases on seven Sprites, while `true` inside ran (in 0.9 to 11 s). Two minutes later all 18 were healthy ([table](docs/measurements.md)). That version reported these as `unknown` with a support note: 18 false alarms. Now the command inside decides, and they are `ok`. I could not find this answer in the Sprites docs, the OpenAPI spec or the Elixir SDK.
 
 ## Limits
 
@@ -66,12 +62,12 @@ On 20 October 2026 an earlier version ran against Sprites created for the test i
 
 ## How it is tested
 
-`mix test` takes about 15 seconds. The classifier is checked against cases rebuilt from the forum threads and the measurements above; the probes run against stubbed HTTP with real tasks and deadlines, the exec through its real guard with the SDK call replaced; the page is tested state by state. `scripts/verify.sh` adds the format and warning checks and builds and starts the demo image. Each rule was also broken on purpose to see its test fail; that harness is not part of this repository.
+`mix test` takes about 15 seconds. The classifier is checked against cases rebuilt from the forum threads and the measurements above; the probes run against stubbed HTTP with real tasks and deadlines, the exec through its real guard with the SDK call replaced; the page is tested state by state. `scripts/verify.sh` adds the format and warning checks and builds and starts the demo image.
 
 ## Decisions
 
 - No restart button. The most common finding, a Sprite waking up, needs no restart, and a triage tool should read, not act. The advice says when one restart is worth a try, and the person does it.
-- The command inside runs by default. `/check` alone looks healthy in the most common stuck pattern, and on waking Sprites the command was what told them apart from stuck ones.
+- The command inside runs by default. In the most common stuck pattern the API and the VM looked fine while every command hung; the threads do not say what `/check` answered then, so the command decides. On waking Sprites it was also what told them apart from stuck ones.
 - No "failing since" from local logs. Only the person knows when it started; the note asks for it.
 - No HTTP retries. A stuck Sprite gets one request per probe (sprites-docs#231).
 

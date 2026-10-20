@@ -12,7 +12,7 @@ defmodule SpriteTriageWeb.TriageLive do
   alias SpriteTriage.{Api, Note}
 
   @headline %{
-    ok: "The Sprite answers",
+    ok: "The Sprite takes commands",
     start_failed: "The machine behind this Sprite fails to start",
     storage_not_ready: "The Sprite's storage is not ready",
     control_only: "The Sprites API answers, the Sprite itself does not",
@@ -121,7 +121,7 @@ defmodule SpriteTriageWeb.TriageLive do
     ~H"""
     <main class="page">
       <p :if={@demo} id="demo-banner" class="demo">
-        Demo mode: a simulated Sprites API replays patterns from public forum threads and from our own measurements. Nothing is sent to Fly.
+        Demo mode: a simulated Sprites API replays patterns from public forum threads and from measurements on real Sprites. Nothing is sent to Fly.
       </p>
       <header class="top">
         <h1>sprite-triage</h1>
@@ -257,6 +257,7 @@ defmodule SpriteTriageWeb.TriageLive do
     do: "#{s} · #{st}"
 
   defp result_text(%{outcome: :ok, http_status: s}), do: "#{s || "ok"}"
+  defp result_text(%{outcome: :http_error, http_status: nil, error: e}), do: e
   defp result_text(%{outcome: :http_error, http_status: s} = o), do: "HTTP #{s} #{short_body(o)}"
   defp result_text(%{outcome: :timeout}), do: "no answer before the deadline"
   defp result_text(%{outcome: :transport_error, error: e}), do: "connection failed: #{e}"

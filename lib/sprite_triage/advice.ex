@@ -136,14 +136,14 @@ defmodule SpriteTriage.Advice do
       do: [
         step(
           :check_client,
-          "Nothing to fix on the Sprite: /check answered and a command ran inside it. If your own calls still fail, look at the client side: token, Sprite name, and connections left open from before.",
+          "The Sprite itself takes commands: /check answered and `true` ran inside it. This says nothing about your own app in it. If your calls still fail, look there and at the client side: token, Sprite name, and connections left open from before.",
           [@docs_issue <> "231"]
         )
       ],
       dont: [
         dont(
           :no_restart_waking,
-          "Don't restart it because /check said \"machine in suspended state\": that is a Sprite waking up.",
+          "Don't restart a Sprite that takes commands, also not when /check first said \"machine in suspended state\": it does that while waking up.",
           [@measured]
         )
       ]
@@ -176,5 +176,16 @@ defmodule SpriteTriage.Advice do
     }
 
   def for_state(:unknown),
-    do: %{do: [stop_traffic(), keep_note()], dont: common_dont()}
+    do: %{
+      do: [
+        stop_traffic(),
+        step(
+          :run_again,
+          "Run the triage again in a few minutes. If the signals stay unclear, contact Fly support with the note below.",
+          ["https://fly.io/dashboard/support"]
+        ),
+        keep_note()
+      ],
+      dont: common_dont()
+    }
 end

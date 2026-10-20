@@ -76,6 +76,7 @@ defmodule SpriteTriage.Note do
        do: "#{p} #{s} #{st}" <> if(b["reason"], do: " (#{b["reason"]})", else: "")
 
   defp summary(%{probe: p, outcome: :ok, http_status: s}), do: "#{p} #{s || "ok"}"
+  defp summary(%{probe: p, outcome: :http_error, http_status: nil, error: e}), do: "#{p} #{e}"
   defp summary(%{probe: p, outcome: :http_error, http_status: s}), do: "#{p} HTTP #{s}"
   defp summary(%{probe: p, outcome: :timeout, elapsed_ms: ms}), do: "#{p} no answer in #{ms} ms"
   defp summary(%{probe: p, outcome: :transport_error}), do: "#{p} connection failed"

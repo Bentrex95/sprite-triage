@@ -5,9 +5,10 @@ defmodule SpriteTriage.Probe do
   others or the caller.
 
   First GET /v1/sprites/{name} and GET …/check, in parallel. When /check answers healthy,
-  or says the machine is suspended (it is waking up), one exec of `true` follows: /check
-  alone looked healthy while commands hung (sprites-docs#230), and on real Sprites the
-  command told a waking Sprite from a stuck one. It runs once and is never retried, and not
+  or says the machine is suspended (it is waking up), one exec of `true` follows. In the
+  stuck reports the API and the VM looked fine while every command hung (sprites-docs#230);
+  what /check said then is not reported, so the command is what decides. On real Sprites
+  it also told a waking Sprite from a stuck one. It runs once and is never retried, and not
   at all when /check failed: the Sprite is then already known not to answer, and a hung
   call keeps a stuck Sprite busy (sprites-docs#231).
   """

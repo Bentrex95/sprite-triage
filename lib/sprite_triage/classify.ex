@@ -130,6 +130,8 @@ defmodule SpriteTriage.Classify do
   defp check_reason(_), do: ""
 
   defp describe(%Obs{outcome: :timeout, elapsed_ms: ms}), do: "timed out after #{ms} ms"
+  # The exec probe has no HTTP status: a non-zero exit is reported as "exit N".
+  defp describe(%Obs{outcome: :http_error, http_status: nil, error: e}), do: "ended with #{e}"
   defp describe(%Obs{outcome: :http_error, http_status: s}), do: "returned HTTP #{s}"
   defp describe(%Obs{outcome: :transport_error, error: e}), do: "failed: #{e}"
   defp describe(%Obs{outcome: o}), do: to_string(o)

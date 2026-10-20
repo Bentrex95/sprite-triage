@@ -86,7 +86,7 @@ defmodule SpriteTriageWeb.LiveTest do
   # One row per state: what the API stubs answer, and words the result must contain.
   @states [
     {"ok", %{sprite: {200, Stubs.sprite()}, check: {200, %{"status" => "healthy"}}},
-     "Nothing to fix on the Sprite"},
+     "The Sprite itself takes commands"},
     {"ok after suspended", %{sprite: {200, Stubs.sprite()}, check: {200, Stubs.suspended()}},
      "it was waking up"},
     {"control_only", %{sprite: {200, Stubs.sprite()}, check: :hang}, "Restart the Sprite once"},
@@ -115,7 +115,7 @@ defmodule SpriteTriageWeb.LiveTest do
     Stubs.api(%{sprite: {200, Stubs.sprite()}, check: {200, Stubs.suspended()}})
     view = open_page()
     html = triage(view, "box")
-    assert html =~ "The Sprite answers"
+    assert html =~ "The Sprite takes commands"
     assert has_element?(view, "#dont li", "machine in suspended state")
     refute has_element?(view, "#note")
   end

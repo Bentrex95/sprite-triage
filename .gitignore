@@ -1,5 +1,4 @@
 /_build/
 /deps/
-/sabotage-result.json
 erl_crash.dump
 /cloud-results/

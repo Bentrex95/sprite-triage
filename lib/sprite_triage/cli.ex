@@ -54,7 +54,6 @@ defmodule SpriteTriage.CLI do
 
     [
       "#{report.name}: #{report.classification.state} – #{report.classification.reason}",
-      report.woke_sprite && "(this triage may have woken the Sprite)",
       "",
       "Do:",
       Enum.map_join(advice.do, "\n", &"  - #{&1.text}"),

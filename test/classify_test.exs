@@ -86,6 +86,13 @@ defmodule SpriteTriage.ClassifyTest do
              :control_only
   end
 
+  test "a command that exits non-zero is named by its exit code, not as an HTTP error" do
+    exited = %O{probe: :exec, outcome: :http_error, error: "exit 1"}
+    result = Classify.classify([sprite(), check("healthy"), exited])
+    assert result.state == :control_only
+    assert result.reason =~ "exec ended with exit 1"
+  end
+
   test "an unexpected /check status is unknown, not ok" do
     result = Classify.classify([sprite(), check("degraded"), @exec_ok])
     assert result.state == :unknown
