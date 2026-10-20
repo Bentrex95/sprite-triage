@@ -5,7 +5,6 @@ defmodule SpriteTriage.CLITest do
 
   setup do
     Req.Test.set_req_test_to_shared()
-    File.rm_rf!(Application.fetch_env!(:sprite_triage, :data_dir))
     :ok
   end
 
@@ -26,10 +25,14 @@ defmodule SpriteTriage.CLITest do
     assert {2, _} = CLI.main(["box", "--bogus"], api())
   end
 
-  test "--restart is not an option: the tool never restarts" do
+  test "removed options are refused before any call: --restart, --no-check" do
     counter = Stubs.api(%{sprite: {200, Stubs.sprite()}, check: :hang})
-    assert {2, out} = CLI.main(["box", "--restart", "--yes"], api())
-    assert out =~ "unknown options"
+
+    for argv <- [["box", "--restart", "--yes"], ["box", "--no-check", "--wake"]] do
+      assert {2, out} = CLI.main(argv, api())
+      assert out =~ "unknown options", "#{inspect(argv)} was accepted"
+    end
+
     assert Stubs.calls(counter, :sprite) == 0
   end
 

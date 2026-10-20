@@ -12,7 +12,7 @@ config :sprite_triage, SpriteTriageWeb.Endpoint,
   check_origin: ["//localhost", "//127.0.0.1"],
   server: false
 
-config :sprite_triage, data_dir: Path.expand("~/.sprite-triage"), web: true, access_key: nil
+config :sprite_triage, web: true, access_key: nil
 
 config :logger, level: :warning
 

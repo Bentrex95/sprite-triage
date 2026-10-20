@@ -1,11 +1,9 @@
-# The public demo on Fly.io (simulated API, no token). Pick a free app name, then:
-#   fly launch --copy-config --no-deploy && fly deploy
-app = "sprite-triage-demo"
+# The public demo on Fly.io (simulated API, no token). The host name follows from the
+# app name. One machine is enough; the secret keeps sessions valid across restarts:
+#   fly launch --copy-config --no-deploy
+#   fly secrets set SECRET_KEY_BASE="$(openssl rand -base64 48)"
+#   fly deploy --ha=false
 primary_region = "fra"
-
-[env]
-  # Must match the app's public host, for links and the LiveView origin check.
-  SPRITE_TRIAGE_HOST = "sprite-triage-demo.fly.dev"
 
 [http_service]
   internal_port = 4090

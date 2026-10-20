@@ -2,6 +2,7 @@ defmodule SpriteTriage.Note do
   @moduledoc """
   The support note: at most 12 lines with what Fly support asked for in the forum
   (Sprite name and id, organization, fly-request-id values, since when). Pure function.
+  Only the person knows since when, so that line is left for them to fill in.
   Never contains a token. No name hashes: in thread 28659 hashing names made support look
   at the wrong Sprite. There is no note where support cannot help: a healthy or waking
   Sprite, a wrong name or token.
@@ -13,8 +14,6 @@ defmodule SpriteTriage.Note do
   five minutes led to "it's alive and kicking" replies (28696).
   """
 
-  alias SpriteTriage.History
-
   @max_ids 5
   @max_lines 12
   @max_field 120
@@ -22,15 +21,12 @@ defmodule SpriteTriage.Note do
   # Five minutes; configurable only so tests need not wait that long.
   def fresh_seconds, do: Application.get_env(:sprite_triage, :fresh_seconds, 300)
 
-  @doc "`history` is this Sprite's events, oldest first (see `SpriteTriage.History`)."
-  @spec render(map(), [map()]) :: String.t() | nil
-  def render(report, history \\ [])
-
-  def render(%{classification: %{state: state}}, _history)
+  @spec render(map()) :: String.t() | nil
+  def render(%{classification: %{state: state}})
       when state in [:ok, :waking, :not_found, :auth_error],
       do: nil
 
-  def render(report, history) do
+  def render(report) do
     %{state: state, reason: reason} = report.classification
 
     [
@@ -38,7 +34,7 @@ defmodule SpriteTriage.Note do
         if(report[:sprite_id], do: " (#{clean(report.sprite_id)})", else: ""),
       report[:org] && "Organization: #{clean(report.org)}",
       "State: #{state} (#{clean(reason)})",
-      "Failing since: #{clean(History.failing_since(history) || report.checked_at, 40)} (first failed check by sprite-triage)",
+      "Failing since: (when did it start? add this before sending)",
       "Checked at: #{clean(report.checked_at, 40)}",
       ids(report) != [] && "fly-request-id: " <> Enum.join(ids(report), ", "),
       "Seen: " <> clean(Enum.map_join(report.observations, " · ", &summary/1), 400),

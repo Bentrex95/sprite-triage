@@ -37,7 +37,6 @@ defmodule SpriteTriageWeb.LiveTest do
 
   setup do
     Req.Test.set_req_test_to_shared()
-    File.rm_rf!(Application.fetch_env!(:sprite_triage, :data_dir))
     :ok
   end
 
@@ -79,18 +78,39 @@ defmodule SpriteTriageWeb.LiveTest do
 
     assert html =~ "The Sprites API answers, the Sprite itself does not"
     assert has_element?(view, "#next-step", "Restart the Sprite once")
-    assert has_element?(view, ~s(#do a[href="https://community.fly.io/t/28383"]))
+    assert has_element?(view, ~s(#next-step a[href="https://community.fly.io/t/28383"]))
+    refute has_element?(view, "#do li", "Restart the Sprite once")
+    assert has_element?(view, "#do li", "Stop clients")
     assert html =~ "01SPRITEREQ"
     assert has_element?(view, "#note")
     refute html =~ "test-token"
   end
 
-  test "the page never restarts: there is no restart control at all" do
-    Stubs.api(%{sprite: {200, Stubs.sprite()}, check: :hang})
-    view = open_page()
-    html = triage(view, "box")
-    refute html =~ ~s(phx-click="restart")
-    refute has_element?(view, "button", "Restart")
+  # One row per state: what the API stubs answer, and words the next step must contain.
+  @states [
+    {"ok", %{sprite: {200, Stubs.sprite()}, check: {200, %{"status" => "healthy"}}},
+     "Also run true"},
+    {"waking", %{sprite: {200, Stubs.sprite()}, check: {200, Stubs.suspended()}}, "two minutes"},
+    {"control_only", %{sprite: {200, Stubs.sprite()}, check: :hang}, "Restart the Sprite once"},
+    {"storage_not_ready", %{sprite: {200, Stubs.sprite()}, check: {503, "Storage not ready"}},
+     "only Fly fixed this"},
+    {"start_failed",
+     %{
+       sprite: {200, Stubs.sprite()},
+       check: {200, %{"status" => "needs_repair", "reason" => "failed to start machine"}}
+     }, "support"},
+    {"unknown_network", %{sprite: :timeout}, "status.flyio.net"},
+    {"not_found", %{sprite: {404, %{"error" => "not found"}}}, "name"}
+  ]
+
+  test "every state shows its next step on the page, with a source" do
+    for {state, stubs, words} <- @states do
+      Stubs.api(stubs)
+      view = open_page()
+      triage(view, "box")
+      assert has_element?(view, "#next-step", words), "#{state}: no next step with #{words}"
+      assert has_element?(view, "#next-step .sources"), "#{state}: next step without a source"
+    end
   end
 
   test "a waking Sprite: says so, says to check again, no note" do

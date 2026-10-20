@@ -11,12 +11,20 @@ if config_env() != :test do
       {:error, _} -> raise ArgumentError, "SPRITE_TRIAGE_IP must be an IP address, got #{ip_text}"
     end
 
-  # Set only for a hosted demo (fly.toml): the public host name, for URLs and the
-  # LiveView origin check.
-  host = System.get_env("SPRITE_TRIAGE_HOST")
+  # Only for a hosted demo: the public host name, for URLs and the LiveView origin check.
+  # On Fly.io it follows from the app name.
+  host =
+    case {System.get_env("SPRITE_TRIAGE_HOST"), System.get_env("FLY_APP_NAME")} do
+      {nil, nil} -> nil
+      {nil, app} -> app <> ".fly.dev"
+      {host, _} -> host
+    end
 
+  # A hosted demo sets SECRET_KEY_BASE (a Fly secret), so sessions survive restarts and
+  # work on every machine. Locally a fresh one per start is enough.
   config :sprite_triage, SpriteTriageWeb.Endpoint,
-    secret_key_base: Base.encode64(:crypto.strong_rand_bytes(48)),
+    secret_key_base:
+      System.get_env("SECRET_KEY_BASE") || Base.encode64(:crypto.strong_rand_bytes(48)),
     server: System.get_env("SPRITE_TRIAGE_SERVER") == "true",
     http: [ip: ip, port: 4090]
 
@@ -28,10 +36,10 @@ if config_env() != :test do
 
   # The token is read from the environment only and never rendered or written to disk.
   # A fresh key per start unless one is given (checked in AccessKey.setup!/0); it is
-  # printed with the URL.
+  # printed with the URL. SPRITE_TRIAGE_DEMO swaps the API for the simulated one.
   config :sprite_triage,
     access_key: System.get_env("SPRITE_TRIAGE_KEY"),
+    demo: System.get_env("SPRITE_TRIAGE_DEMO") == "true",
     public_demo: System.get_env("SPRITE_TRIAGE_PUBLIC_DEMO") == "true",
-    api_options: [token: System.get_env("SPRITES_TOKEN")],
-    data_dir: System.get_env("SPRITE_TRIAGE_DATA", Path.expand("~/.sprite-triage"))
+    api_options: [token: System.get_env("SPRITES_TOKEN")]
 end

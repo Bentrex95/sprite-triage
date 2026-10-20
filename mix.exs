@@ -8,7 +8,8 @@ defmodule SpriteTriage.MixProject do
       elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      releases: [sprite_triage: []]
     ]
   end
 

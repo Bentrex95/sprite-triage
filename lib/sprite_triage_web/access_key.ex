@@ -48,7 +48,8 @@ defmodule SpriteTriageWeb.AccessKey do
   """
   def setup! do
     if Application.get_env(:sprite_triage, :public_demo, false) == true and not demo_api?(),
-      do: raise(ArgumentError, "SPRITE_TRIAGE_PUBLIC_DEMO only works with mix sprite_triage.demo")
+      do:
+        raise(ArgumentError, "SPRITE_TRIAGE_PUBLIC_DEMO only works with SPRITE_TRIAGE_DEMO=true")
 
     key =
       case Application.get_env(:sprite_triage, :access_key) do

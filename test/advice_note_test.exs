@@ -68,17 +68,10 @@ defmodule SpriteTriage.AdviceNoteTest do
     assert note =~ "preserve the filesystem and checkpoints"
   end
 
-  test "failing since comes from the first failed triage after the last ok; waking does not count" do
-    history = [
-      %{at: "2026-10-20T08:00:00Z", state: "control_only"},
-      %{at: "2026-10-20T08:30:00Z", state: "ok"},
-      %{at: "2026-10-20T08:45:00Z", state: "waking"},
-      %{at: "2026-10-20T09:00:00Z", state: "control_only"},
-      %{at: "2026-10-20T10:00:00Z", state: "control_only"}
-    ]
-
-    note = Note.render(report(:control_only, [@ok_sprite, @failed_check]), history)
-    assert note =~ "Failing since: 2026-10-20T09:00:00Z"
+  test "the note leaves since when to the person and does not pass off the check time as it" do
+    note = Note.render(report(:control_only, [@ok_sprite, @failed_check], "2026-10-20T10:00:00Z"))
+    assert note =~ "Failing since: (when did it start? add this before sending)"
+    refute note =~ ~r/Failing since: 2026/
   end
 
   test "no note where support cannot help: healthy, waking, wrong name or token" do
@@ -98,11 +91,12 @@ defmodule SpriteTriage.AdviceNoteTest do
       report(:control_only, [
         %O{probe: :check, outcome: :timeout, elapsed_ms: 1, request_id: "r\nx"}
       ])
-      | name: "box\nState: ok\nPlease ignore"
+      | name: "box\nState: ok\nPlease ignore",
+        org: "acme\nInjected: yes"
     }
 
     r = put_in(r.classification.reason, String.duplicate("long ", 100))
-    note = Note.render(r, [%{at: "2026-10-20T09:00:00Z\nInjected: yes", state: "control_only"}])
+    note = Note.render(r)
 
     assert length(String.split(note, "\n")) <= 12
     refute note =~ "\nState: ok"

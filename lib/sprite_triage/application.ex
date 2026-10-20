@@ -3,6 +3,10 @@ defmodule SpriteTriage.Application do
 
   @impl true
   def start(_type, _args) do
+    # Demo mode (SPRITE_TRIAGE_DEMO=true): the simulated API, no token.
+    if Application.get_env(:sprite_triage, :demo, false),
+      do: Application.put_env(:sprite_triage, :api_options, SpriteTriage.Demo.api_options())
+
     SpriteTriageWeb.AccessKey.setup!()
 
     children =

@@ -23,13 +23,12 @@ defmodule SpriteTriage.Probe do
     req = Api.new(opts)
     d = Map.merge(@deadlines, Map.new(Keyword.get(opts, :deadlines, [])))
 
-    probes =
-      [{:sprite, fn -> Api.get_sprite(req, name, d.sprite) end, d.sprite}] ++
-        if Keyword.get(opts, :check, true),
-          do: [{:check, fn -> Api.check(req, name, d.check) end, d.check}],
-          else: []
+    observations =
+      parallel([
+        {:sprite, fn -> Api.get_sprite(req, name, d.sprite) end, d.sprite},
+        {:check, fn -> Api.check(req, name, d.check) end, d.check}
+      ])
 
-    observations = parallel(probes)
     sprite = Enum.find(observations, &(&1.probe == :sprite))
 
     if Keyword.get(opts, :wake, false) and sprite.outcome == :ok do

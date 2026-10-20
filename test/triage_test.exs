@@ -1,11 +1,10 @@
 defmodule SpriteTriage.TriageTest do
   # The whole triage against stubbed HTTP: real Req, real tasks, real deadlines (300 ms in tests).
   use ExUnit.Case, async: false
-  alias SpriteTriage.{History, Stubs}
+  alias SpriteTriage.Stubs
 
   setup do
     Req.Test.set_req_test_to_shared()
-    File.rm_rf!(Application.fetch_env!(:sprite_triage, :data_dir))
     :ok
   end
 
@@ -118,43 +117,5 @@ defmodule SpriteTriage.TriageTest do
     on_exit(fn -> Application.delete_env(:sprite_triage, :clock) end)
     Stubs.api(%{sprite: {200, Stubs.sprite()}, check: :hang})
     assert SpriteTriage.triage("box", opts()).checked_at == "2026-10-20T10:00:00Z"
-  end
-
-  describe "history" do
-    test "failing since survives across runs" do
-      Stubs.api(%{sprite: {200, Stubs.sprite()}, check: :hang})
-      first = SpriteTriage.triage("box", opts())
-      second = SpriteTriage.triage("box", opts())
-      assert second.note =~ "Failing since: #{first.checked_at}"
-    end
-
-    test "is keyed by Sprite id: a re-created Sprite with the same name starts fresh" do
-      File.mkdir_p!(Path.dirname(History.path()))
-
-      File.write!(History.path(), """
-      {"sprite":"box","id":"sprite-old","at":"2026-10-01T10:00:00Z","state":"control_only"}
-      """)
-
-      Stubs.api(%{sprite: {200, Stubs.sprite()}, check: :hang})
-      r = SpriteTriage.triage("box", opts())
-      refute r.note =~ "2026-10-01"
-    end
-
-    test "unreadable lines are skipped and an unwritable log does not stop a triage" do
-      File.mkdir_p!(Path.dirname(History.path()))
-      File.write!(History.path(), "not json\n")
-      Stubs.api(%{sprite: {200, Stubs.sprite()}, check: :hang})
-      assert SpriteTriage.triage("box", opts()).classification.state == :control_only
-
-      dir = Application.fetch_env!(:sprite_triage, :data_dir)
-      blocker = Path.join(System.tmp_dir!(), "sprite-triage-not-a-dir")
-      File.write!(blocker, "x")
-      Application.put_env(:sprite_triage, :data_dir, Path.join(blocker, "sub"))
-      on_exit(fn -> Application.put_env(:sprite_triage, :data_dir, dir) end)
-
-      ExUnit.CaptureLog.capture_log(fn ->
-        assert SpriteTriage.triage("box", opts()).classification.state == :control_only
-      end)
-    end
   end
 end

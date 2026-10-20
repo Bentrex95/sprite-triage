@@ -5,7 +5,6 @@ config :sprite_triage, SpriteTriageWeb.Endpoint,
   server: false
 
 config :sprite_triage,
-  data_dir: Path.join(System.tmp_dir!(), "sprite-triage-test"),
   tick_ms: 50,
   access_key: "test-key-0123456789",
   api_options: [

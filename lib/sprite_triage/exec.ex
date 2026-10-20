@@ -6,7 +6,9 @@ defmodule SpriteTriage.Exec do
   connects, so whoever waits for it may give up (and be killed) first. The command is
   therefore owned by a separate guard process that is not linked to the probe: the
   guard waits for the SDK, and once it has the command it kills it as soon as the
-  deadline has passed. No exec connection is left open behind a timed-out probe.
+  deadline has passed, even when the SDK hands it over late. What it cannot end is a
+  connect that never returns: the SDK opens the connection inside its own unlinked
+  process and sets no timeout for it.
   """
 
   alias SpriteTriage.Observation

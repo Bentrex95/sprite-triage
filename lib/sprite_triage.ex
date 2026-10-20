@@ -1,16 +1,17 @@
 defmodule SpriteTriage do
   @moduledoc """
   Triage for a Sprite that stopped answering: what the signals say, what is safe to do
-  next, and a short note for Fly support. It reads; it never restarts or changes a Sprite
-  (the optional exec probe runs `true` inside it).
+  next, and a short note for Fly support. It makes no recovery change: no restart, no
+  upgrade. `/check` and the optional exec of `true` can wake the Sprite, and the report
+  says when they may have.
 
       SpriteTriage.triage("my-sprite", token: token, wake: true)
 
-  Options: `:token`, `:base_url`, `:check` (default true), `:wake` (default false),
-  `:deadlines`, `:history` (default true), plus test hooks (`:plug`, `:spawn`, `:exec`).
+  Options: `:token`, `:base_url`, `:wake` (default false), `:deadlines`, plus test hooks
+  (`:plug`, `:spawn`, `:exec`).
   """
 
-  alias SpriteTriage.{Advice, Classify, History, Note, Probe}
+  alias SpriteTriage.{Advice, Classify, Note, Probe}
 
   @spec triage(String.t(), keyword()) :: map()
   def triage(name, opts) do
@@ -33,19 +34,8 @@ defmodule SpriteTriage do
       advice: Advice.for_state(classification.state)
     }
 
-    # Read before writing, so "failing since" is about earlier runs.
-    earlier =
-      if history?(opts), do: History.for_sprite(name, report.sprite_id), else: []
-
-    if history?(opts), do: History.record(report)
-
-    Map.put(report, :note, Note.render(report, earlier ++ [history_event(report)]))
+    Map.put(report, :note, Note.render(report))
   end
-
-  defp history_event(report),
-    do: %{at: report.checked_at, state: to_string(report.classification.state)}
-
-  defp history?(opts), do: Keyword.get(opts, :history, true)
 
   defp string(v) when is_binary(v), do: v
   defp string(_), do: nil

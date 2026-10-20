@@ -93,7 +93,7 @@ defmodule SpriteTriageWeb.AccessKeyTest do
     test "cannot be switched on with a real token" do
       Application.put_env(:sprite_triage, :public_demo, true)
 
-      assert_raise ArgumentError, ~r/only works with mix sprite_triage.demo/, fn ->
+      assert_raise ArgumentError, ~r/only works with SPRITE_TRIAGE_DEMO=true/, fn ->
         AccessKey.setup!()
       end
 

@@ -7,6 +7,7 @@ defmodule SpriteTriageWeb.TriageLive do
   the five minutes are up, and another one re-checks every 30 s.
   """
   use Phoenix.LiveView
+  require Logger
 
   alias SpriteTriage.{Api, Note}
   alias SpriteTriageWeb.AccessKey
@@ -116,7 +117,6 @@ defmodule SpriteTriageWeb.TriageLive do
 
   # The reason may contain request details; it stays in the server log.
   def handle_async(:triage, {:exit, reason}, socket) do
-    require Logger
     Logger.error("triage crashed: #{inspect(reason)}")
     {:noreply, assign(socket, running: false, error: "The triage crashed; see the server log.")}
   end
@@ -137,8 +137,8 @@ defmodule SpriteTriageWeb.TriageLive do
         &(&1.id not in [:stop_traffic, :keep_note])
       )
 
-  # With a single step the box says it all; the list would only repeat it.
-  defp single_step?(report), do: length(report.advice.do) == 1
+  # The rest of the steps, in their order; the next step is shown once, in its box.
+  defp other_steps(report), do: report.advice.do -- [next_step(report)]
 
   @impl true
   def render(%{denied: true} = assigns) do
@@ -157,7 +157,7 @@ defmodule SpriteTriageWeb.TriageLive do
         <h1>sprite-triage</h1>
         <p>
           For a Sprite that stopped answering: what the signals say, what to do next, and a short note for Fly support.
-          It only reads; it never restarts or changes a Sprite.
+          It restarts nothing and changes no settings; the checks below can wake the Sprite.
         </p>
       </header>
 
@@ -171,6 +171,9 @@ defmodule SpriteTriageWeb.TriageLive do
           </label>
           <button type="submit" disabled={@running}>{if @running, do: "Checking…", else: "Run triage"}</button>
         </form>
+        <p :if={@running} id="running" class="hint" role="status">
+          Waiting for the Sprite: up to a minute, and up to 45 s more with the command.
+        </p>
         <p class="hint">
           Triage reads the Sprites API and calls <code>/check</code>, which may wake the Sprite.
           Commands run inside the Sprite only if you tick the box.
@@ -188,21 +191,15 @@ defmodule SpriteTriageWeb.TriageLive do
           </h2>
           <p class="reason">{@report.name}: {@report.classification.reason}</p>
 
-          <div :if={@report.classification.state != :ok} id="next-step" class="next">
+          <div id="next-step" class="next">
             <strong>Next step:</strong> {next_step(@report).text}
-            <span :if={single_step?(@report)} class="sources">
-              Source: <.links urls={next_step(@report).sources} />
-            </span>
+            <.step_sources step={next_step(@report)} />
           </div>
 
-          <h3 :if={not single_step?(@report)}>Do</h3>
-          <ol :if={not single_step?(@report)} id="do">
-            <li :for={s <- @report.advice.do}>
-              {s.text}
-              <span class="sources">
-                Source: <.links urls={s.sources} />
-                <span :if={s.counter_sources != []}>· did not help in: <.links urls={s.counter_sources} /></span>
-              </span>
+          <h3 :if={other_steps(@report) != []}>Also</h3>
+          <ol :if={other_steps(@report) != []} id="do">
+            <li :for={s <- other_steps(@report)}>
+              {s.text} <.step_sources step={s} />
             </li>
           </ol>
 
@@ -270,6 +267,15 @@ defmodule SpriteTriageWeb.TriageLive do
         </p>
       </section>
     </main>
+    """
+  end
+
+  defp step_sources(assigns) do
+    ~H"""
+    <span class="sources">
+      Source: <.links urls={@step.sources} />
+      <span :if={@step.counter_sources != []}>· did not help in: <.links urls={@step.counter_sources} /></span>
+    </span>
     """
   end
 
