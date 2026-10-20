@@ -1,0 +1,20 @@
+# The public demo on Fly.io (simulated API, no token). Pick a free app name, then:
+#   fly launch --copy-config --no-deploy && fly deploy
+app = "sprite-triage-demo"
+primary_region = "fra"
+
+[env]
+  # Must match the app's public host, for links and the LiveView origin check.
+  SPRITE_TRIAGE_HOST = "sprite-triage-demo.fly.dev"
+
+[http_service]
+  internal_port = 4090
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
