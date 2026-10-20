@@ -32,7 +32,7 @@ support note. sprite-triage now reads this answer as a Sprite waking up when the
 
 ## Rerun with the current version
 
-On 20 October 2026, commit `4a11136`, three new Sprites: triaged fresh (3/3 `ok`, no note), left alone for
+On 20 October 2026, commit `851d44f`, three new Sprites: triaged fresh (3/3 `ok`, no note), left alone for
 15 minutes, then triaged again. The first `/check` answered the same way, the command inside ran, and the result
 was `ok` without a support note. A text-mode triage after another 15 quiet minutes also gave `ok` without a note.
 
