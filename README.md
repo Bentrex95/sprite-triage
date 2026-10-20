@@ -8,6 +8,8 @@ Between July and October 2026 the Fly.io community forum collected more than fif
 
 Only Fly can fix the host side. A tool can shorten the way there and keep people and agents from making things worse.
 
+Fly's monitoring (log export, metrics) covers apps on Machines and needs the instance to emit something; its docs do not mention Sprites. A stuck Sprite emits nothing, it just stops answering. sprite-triage asks from the outside, at that moment, for one Sprite.
+
 ## Try it without an account
 
 ```sh
@@ -52,7 +54,7 @@ The reported status (`running`, `warm`, `cold`) is shown but never used: stuck S
 
 ## Measured on real Sprites
 
-On 20 October 2026 an earlier version ran against Sprites created for the test in a trial organization. After a quiet period, the first `/check` answered HTTP 200 with `{"status": "needs_repair", "reason": "machine in suspended state"}` in 18 of 18 cases on seven Sprites, while `true` inside ran (in 0.9 to 11 s). Two minutes later all 18 were healthy ([table](docs/measurements.md)). That version reported these as `unknown` with a support note: 18 false alarms. Now the command inside decides, and they are `ok`. I could not find this answer in the Sprites docs, the OpenAPI spec or the Elixir SDK.
+On 20 October 2026 an earlier version ran against Sprites created for the test in a trial organization. After a quiet period, the first `/check` answered HTTP 200 with `{"status": "needs_repair", "reason": "machine in suspended state"}` in 18 of 18 cases on seven Sprites, while `true` inside ran (in 0.9 to 11 s). Two minutes later all 18 were healthy ([table](docs/measurements.md)). That version reported these as `unknown` with a support note: 18 false alarms. Now the command inside decides. A rerun with the current version on three new Sprites gave the same `/check` answer on 3 of 3 first checks after 15 quiet minutes, and `ok` without a note each time. I could not find this answer in the Sprites docs, the OpenAPI spec or the Elixir SDK.
 
 ## Limits
 

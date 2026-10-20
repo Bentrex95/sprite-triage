@@ -29,3 +29,15 @@ request ids are left out.
 All 18 first checks answered `needs_repair: machine in suspended state` while the command inside ran; all 18
 checks two minutes later were healthy. The version measured here turned each first check into `unknown` with a
 support note. sprite-triage now reads this answer as a Sprite waking up when the command inside runs.
+
+## Rerun with the current version
+
+On 20 October 2026, commit `4a11136`, three new Sprites: triaged fresh (3/3 `ok`, no note), left alone for
+15 minutes, then triaged again. The first `/check` answered the same way, the command inside ran, and the result
+was `ok` without a support note. A text-mode triage after another 15 quiet minutes also gave `ok` without a note.
+
+| # | Sprite | First check (UTC) | `/check` answer | `/check` ms | Command inside | Result |
+|---|---|---|---|---|---|---|
+| 1 | triage-v2-1 | 2026-10-20 14:21:49 | 200 needs_repair: machine in suspended state | 1280 | ok, 985 ms | `ok`, no note |
+| 2 | triage-v2-2 | 2026-10-20 14:22:00 | 200 needs_repair: machine in suspended state | 948 | ok, 1134 ms | `ok`, no note |
+| 3 | triage-v2-3 | 2026-10-20 14:22:10 | 200 needs_repair: machine in suspended state | 868 | ok, 1100 ms | `ok`, no note |
