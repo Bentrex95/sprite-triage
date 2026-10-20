@@ -1,5 +1,7 @@
 # sprite-triage
 
+**Live demo: [sprite-triage-demo-ben-live.fly.dev](https://sprite-triage-demo-ben-live.fly.dev/)** (simulated Sprites API, no account needed; try `demo-wedged`)
+
 When a Sprite stops answering, sprite-triage checks the few signals the API offers, runs one command inside the Sprite, says what the results point to, lists the next steps that helped in public forum threads (and the ones that made things worse), and writes the short note Fly support asks for. It restarts nothing and changes no settings; its checks can wake a sleeping Sprite. It has a small Phoenix LiveView page and a command line (text or JSON).
 
 ## Why
@@ -13,6 +15,8 @@ Fly's monitoring (log export, metrics) covers apps on Machines and needs the ins
 How this problem was chosen over six other ideas: [how it came about](docs/how-it-came-about.md).
 
 ## Try it without an account
+
+Open the [live demo](https://sprite-triage-demo-ben-live.fly.dev/), or run the same image locally:
 
 ```sh
 docker build -t sprite-triage-demo . && docker run --rm -p 127.0.0.1:4090:4090 sprite-triage-demo
