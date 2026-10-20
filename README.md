@@ -10,6 +10,8 @@ Only Fly can fix the host side. A tool can shorten the way there and keep people
 
 Fly's monitoring (log export, metrics) covers apps on Machines and needs the instance to emit something; its docs do not mention Sprites. A stuck Sprite emits nothing, it just stops answering. sprite-triage asks from the outside, at that moment, for one Sprite.
 
+How this problem was chosen over six other ideas: [how it came about](docs/how-it-came-about.md).
+
 ## Try it without an account
 
 ```sh
