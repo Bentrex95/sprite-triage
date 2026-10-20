@@ -10,13 +10,20 @@ defmodule SpriteTriage.ClassifyTest do
 
   @iotimeout "failed to start sprite command: failed to connect: read tcp 10.0.0.1:55094->169.155.48.226:443: i/o timeout"
 
+  @exec_ok %O{probe: :exec, outcome: :ok}
+
+  # The threads report what users saw from their own commands; that /check looked healthy
+  # meanwhile is our assumption where it is not reported (`mapped: true`).
   @cases [
     # {thread, staff confirmed cause?, symptoms mapped onto our probes?, observations, expected}
-    {"28383", true, true, [sprite("warm"), failed(:exec, :transport_error, @iotimeout)],
+    {"28383", true, true,
+     [sprite("warm"), check("healthy"), failed(:exec, :transport_error, @iotimeout)],
      :control_only},
-    {"28561", false, true, [sprite("warm"), failed(:exec, :transport_error, @iotimeout)],
+    {"28561", false, true,
+     [sprite("warm"), check("healthy"), failed(:exec, :transport_error, @iotimeout)],
      :control_only},
-    {"28659", true, true, [sprite("cold"), failed(:exec, :transport_error, @iotimeout)],
+    {"28659", true, true,
+     [sprite("cold"), check("healthy"), failed(:exec, :transport_error, @iotimeout)],
      :control_only},
     {"28696", false, false,
      [
@@ -41,7 +48,7 @@ defmodule SpriteTriage.ClassifyTest do
        sprite("cold"),
        %O{probe: :check, outcome: :http_error, http_status: 503, body: "Storage not ready"}
      ], :storage_not_ready},
-    {"28288", false, false, [sprite("cold"), check("healthy")], :ok}
+    {"28288", false, false, [sprite("cold"), check("healthy"), @exec_ok], :ok}
   ]
 
   for {thread, confirmed, mapped, observations, expected} <- @cases do
@@ -53,7 +60,7 @@ defmodule SpriteTriage.ClassifyTest do
 
   test "the reported status is never used: unreachable and healthy Sprites show any of the three" do
     for status <- ~w(running warm cold) do
-      assert Classify.classify([sprite(status), check("healthy")]).state == :ok
+      assert Classify.classify([sprite(status), check("healthy"), @exec_ok]).state == :ok
 
       assert Classify.classify([sprite(status), failed(:check, :timeout, "timeout")]).state ==
                :control_only
@@ -80,13 +87,14 @@ defmodule SpriteTriage.ClassifyTest do
   end
 
   test "an unexpected /check status is unknown, not ok" do
-    result = Classify.classify([sprite(), check("degraded")])
+    result = Classify.classify([sprite(), check("degraded"), @exec_ok])
     assert result.state == :unknown
     assert result.reason =~ "degraded", "the reason should name the status /check returned"
   end
 
-  test "without /check there is not enough to say ok" do
+  test "without /check, or without the command inside, there is not enough to say ok" do
     assert Classify.classify([sprite()]).state == :unknown
+    assert Classify.classify([sprite(), check("healthy")]).state == :unknown
   end
 
   test "storage not ready wins over a generic failure" do
@@ -99,9 +107,9 @@ defmodule SpriteTriage.ClassifyTest do
     assert Classify.classify(obs).state == :storage_not_ready
   end
 
-  describe "waking up (measured on real Sprites)" do
-    # The first /check after 15 quiet minutes answered 200 with this body on every one of
-    # seven Sprites; two minutes later it was healthy. A command inside ran fine.
+  describe "waking up (docs/measurements.md)" do
+    # The first /check after a quiet period answered 200 with this body on all seven
+    # Sprites measured, 18 times; the command inside ran, and later checks were healthy.
     @suspended %O{
       probe: :check,
       outcome: :ok,
@@ -112,16 +120,11 @@ defmodule SpriteTriage.ClassifyTest do
         "elapsed" => 100
       }
     }
-    @exec_ok %O{probe: :exec, outcome: :ok}
 
-    test "suspended while waking and no command run: waking, not a failure" do
-      result = Classify.classify([sprite("cold"), @suspended])
-      assert result.state == :waking
-      assert result.reason =~ "suspended"
-    end
-
-    test "suspended while waking, but a command inside ran: ok" do
-      assert Classify.classify([sprite("cold"), @suspended, @exec_ok]).state == :ok
+    test "suspended while waking, and the command inside ran: ok, with the reason" do
+      result = Classify.classify([sprite("cold"), @suspended, @exec_ok])
+      assert result.state == :ok
+      assert result.reason =~ "waking up"
     end
 
     test "suspended and the command inside failed: the Sprite does not answer" do
@@ -132,6 +135,15 @@ defmodule SpriteTriage.ClassifyTest do
     test "needs_repair for any other reason stays unknown" do
       other = %{@suspended | body: %{"status" => "needs_repair", "reason" => "disk full"}}
       assert Classify.classify([sprite(), other, @exec_ok]).state == :unknown
+    end
+
+    test "a command is worth one try after healthy or suspended, not after anything else" do
+      assert Classify.answered?(check("healthy"))
+      assert Classify.answered?(@suspended)
+      refute Classify.answered?(check("degraded"))
+      refute Classify.answered?(check("unhealthy", "failed to start machine"))
+      refute Classify.answered?(failed(:check, :timeout, "timeout"))
+      refute Classify.answered?(nil)
     end
   end
 
@@ -160,6 +172,6 @@ defmodule SpriteTriage.ClassifyTest do
       | body: Map.put(healthy.body, "last_error", "Storage not ready (yesterday)")
     }
 
-    assert Classify.classify([sprite(), healthy]).state == :ok
+    assert Classify.classify([sprite(), healthy, @exec_ok]).state == :ok
   end
 end

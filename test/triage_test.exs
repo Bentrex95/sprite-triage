@@ -52,7 +52,6 @@ defmodule SpriteTriage.TriageTest do
     Stubs.api(%{sprite: {200, Stubs.sprite()}, check: {503, "Storage not ready"}})
     r = SpriteTriage.triage("box", opts())
     assert r.classification.state == :storage_not_ready
-    assert r.advice.escalate
     assert r.note =~ "preserve the filesystem"
   end
 
@@ -63,16 +62,12 @@ defmodule SpriteTriage.TriageTest do
     assert r.note == nil
   end
 
-  test "first wake after a quiet period: waking without exec, ok with it, never a note" do
+  test "first wake after a quiet period: suspended, the command runs, ok and no note" do
     Stubs.api(%{sprite: {200, Stubs.sprite("cold")}, check: {200, Stubs.suspended()}})
-
-    waking = SpriteTriage.triage("box", opts())
-    assert waking.classification.state == :waking
-    assert waking.note == nil
-
-    woke = SpriteTriage.triage("box", opts(wake: true, exec: &exec_ok/3))
-    assert woke.classification.state == :ok
-    assert woke.note == nil
+    r = SpriteTriage.triage("box", opts(exec: &exec_ok/3))
+    assert r.classification.state == :ok
+    assert r.classification.reason =~ "waking up"
+    assert r.note == nil
   end
 
   test "an API timeout is not blamed on the Sprite" do
@@ -80,8 +75,7 @@ defmodule SpriteTriage.TriageTest do
     assert SpriteTriage.triage("box", opts()).classification.state == :unknown_network
   end
 
-  test "exec runs only with wake, only after the API answered, and only once" do
-    Stubs.api(%{sprite: {200, Stubs.sprite()}, check: {200, %{"status" => "healthy"}}})
+  test "the command runs once, and only when the API and /check answered" do
     {:ok, calls} = Agent.start_link(fn -> 0 end)
 
     exec = fn _name, _opts, _timeout ->
@@ -89,15 +83,22 @@ defmodule SpriteTriage.TriageTest do
       %SpriteTriage.Observation{probe: :exec, outcome: :timeout, elapsed_ms: 300}
     end
 
-    assert SpriteTriage.triage("box", opts(exec: exec)).observations
-           |> Enum.all?(&(&1.probe != :exec))
-
-    r = SpriteTriage.triage("box", opts(exec: exec, wake: true))
+    Stubs.api(%{sprite: {200, Stubs.sprite()}, check: {200, %{"status" => "healthy"}}})
+    r = SpriteTriage.triage("box", opts(exec: exec))
     assert Agent.get(calls, & &1) == 1
     assert r.classification.state == :control_only
 
-    Stubs.api(%{sprite: :timeout})
-    SpriteTriage.triage("box", opts(exec: exec, wake: true))
+    # A Sprite already known not to answer gets no command: a hung call keeps it busy.
+    for stubs <- [
+          %{sprite: :timeout, check: {200, %{"status" => "healthy"}}},
+          %{sprite: {200, Stubs.sprite()}, check: :hang},
+          %{sprite: {200, Stubs.sprite()}, check: {503, "Storage not ready"}},
+          %{sprite: {200, Stubs.sprite()}, check: {200, %{"status" => "unknown-to-us"}}}
+        ] do
+      Stubs.api(stubs)
+      SpriteTriage.triage("box", opts(exec: exec))
+    end
+
     assert Agent.get(calls, & &1) == 1
   end
 

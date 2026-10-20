@@ -3,16 +3,15 @@ defmodule SpriteTriage.CLI do
   The command line, as a function: arguments and API options in, `{exit_code, output}`
   out. `mix sprite_triage` only prints the output and exits with the code.
 
-      mix sprite_triage NAME [--json] [--wake]
+      mix sprite_triage NAME [--json]
 
-    --json   print the full report as JSON (for scripts and agents)
-    --wake   also run `true` inside the Sprite once (wakes it; never retried)
+    --json   print the full report as JSON (for scripts)
 
-  Exit codes: 0 ok, 1 not healthy (including waking: run it again in two minutes),
+  Exit codes: 0 the Sprite answers, 1 it does not or the signals are unclear,
   2 usage, token or name problem.
   """
 
-  @switches [json: :boolean, wake: :boolean]
+  @switches [json: :boolean]
 
   def usage, do: @moduledoc
 
@@ -20,7 +19,7 @@ defmodule SpriteTriage.CLI do
   def main(argv, api) do
     case parse(argv) do
       {:ok, opts, name} ->
-        report = SpriteTriage.triage(name, api ++ [wake: opts[:wake] || false])
+        report = SpriteTriage.triage(name, api)
 
         {exit_code(report.classification.state), render(report, opts)}
 
@@ -55,7 +54,7 @@ defmodule SpriteTriage.CLI do
 
     [
       "#{report.name}: #{report.classification.state} – #{report.classification.reason}",
-      report.woke_sprite && "(this triage called /check, which may have woken the Sprite)",
+      report.woke_sprite && "(this triage may have woken the Sprite)",
       "",
       "Do:",
       Enum.map_join(advice.do, "\n", &"  - #{&1.text}"),

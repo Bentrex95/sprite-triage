@@ -24,21 +24,14 @@ const Hooks = {
   }
 };
 
-// The access key arrives once in the address (?key=…). Keep it in sessionStorage, which
-// belongs to this origin and port only (cookies are shared by all ports on localhost),
-// take it out of the address bar, and send it when the socket connects.
-const KEY = "sprite-triage-key";
+// The key is only needed once, for the session; take it out of the address bar.
 const here = new URL(window.location.href);
-let key = here.searchParams.get("key") || "";
-if (key) {
-  try { sessionStorage.setItem(KEY, key); } catch (_e) { /* storage blocked: works until reload */ }
+if (here.searchParams.has("key")) {
   here.searchParams.delete("key");
   history.replaceState(null, "", here.pathname + here.search + here.hash);
-} else {
-  try { key = sessionStorage.getItem(KEY) || ""; } catch (_e) { /* storage blocked */ }
 }
 
 const token = document.querySelector("meta[name='csrf-token']").getAttribute("content");
-const liveSocket = new LiveSocket("/live", Socket, {params: {_csrf_token: token, key}, hooks: Hooks});
+const liveSocket = new LiveSocket("/live", Socket, {params: {_csrf_token: token}, hooks: Hooks});
 liveSocket.disableDebug();
 liveSocket.connect();

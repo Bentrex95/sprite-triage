@@ -3,18 +3,16 @@ defmodule SpriteTriageWeb.TriageLive do
   One page: pick a Sprite, run the triage, read the next step, copy the note for support.
 
   Opening the page lists Sprites from the API only; no Sprite is woken. The page never
-  restarts anything. The note can only be copied while it is fresh: a timer fires when
-  the five minutes are up, and another one re-checks every 30 s.
+  restarts anything. The note can only be copied while it is fresh; a timer re-checks
+  its age every 30 s.
   """
   use Phoenix.LiveView
   require Logger
 
   alias SpriteTriage.{Api, Note}
-  alias SpriteTriageWeb.AccessKey
 
   @headline %{
-    ok: "/check reports the Sprite as healthy",
-    waking: "The Sprite is waking up",
+    ok: "The Sprite answers",
     start_failed: "The machine behind this Sprite fails to start",
     storage_not_ready: "The Sprite's storage is not ready",
     control_only: "The Sprites API answers, the Sprite itself does not",
@@ -29,22 +27,12 @@ defmodule SpriteTriageWeb.TriageLive do
   def mount(_params, session, socket) when not is_map_key(session, "access_ok"),
     do: {:ok, assign(socket, denied: true)}
 
-  # The session cookie is shared by every port on localhost, so a service on another
-  # port could replay it. The connected socket therefore also needs the key itself,
-  # which the page keeps in sessionStorage (scoped to this origin, port included).
-  def mount(params, session, socket) do
-    if connected?(socket) and not AccessKey.valid?(get_connect_params(socket)["key"]),
-      do: {:ok, assign(socket, denied: true)},
-      else: allowed_mount(params, session, socket)
-  end
-
-  defp allowed_mount(params, _session, socket) do
+  def mount(params, _session, socket) do
     socket =
       assign(socket,
         sprites: nil,
         list_error: nil,
         name: params["name"] || "",
-        wake: false,
         report: nil,
         running: false,
         error: nil,
@@ -71,28 +59,22 @@ defmodule SpriteTriageWeb.TriageLive do
   @impl true
   def handle_event(_event, _params, %{assigns: %{denied: true}} = socket), do: {:noreply, socket}
 
-  # Keeps the checkbox (and name) in sync, so the list buttons can use it.
-  def handle_event("form", params, socket),
-    do: {:noreply, assign(socket, wake: params["wake"] == "true", name: params["name"] || "")}
-
   def handle_event("triage", _params, %{assigns: %{running: true}} = socket),
     do: {:noreply, socket}
 
   def handle_event("triage", _params, %{assigns: %{token?: false}} = socket),
     do: {:noreply, socket}
 
-  # The list buttons send only a name; they use the checkbox as it is on the form.
   def handle_event("triage", params, socket) do
     name = String.trim(params["name"] || "")
-    wake = if params["source"] == "list", do: socket.assigns.wake, else: params["wake"] == "true"
 
     if name == "" do
       {:noreply, socket}
     else
       {:noreply,
        socket
-       |> assign(name: name, wake: wake, running: true, report: nil, error: nil)
-       |> start_async(:triage, fn -> SpriteTriage.triage(name, opts() ++ [wake: wake]) end)}
+       |> assign(name: name, running: true, report: nil, error: nil)
+       |> start_async(:triage, fn -> SpriteTriage.triage(name, opts()) end)}
     end
   end
 
@@ -108,12 +90,8 @@ defmodule SpriteTriageWeb.TriageLive do
   def handle_async(:list, {:exit, _}, socket),
     do: {:noreply, assign(socket, list_error: "Could not list Sprites.")}
 
-  # Besides the periodic tick, one tick exactly when the note goes stale.
-  def handle_async(:triage, {:ok, report}, socket) do
-    left = Note.ms_left(report, now())
-    if left > 0, do: Process.send_after(self(), :tick, left)
-    {:noreply, assign(socket, report: report, running: false, now: now())}
-  end
+  def handle_async(:triage, {:ok, report}, socket),
+    do: {:noreply, assign(socket, report: report, running: false, now: now())}
 
   # The reason may contain request details; it stays in the server log.
   def handle_async(:triage, {:exit, reason}, socket) do
@@ -128,17 +106,9 @@ defmodule SpriteTriageWeb.TriageLive do
 
   defp headline(state), do: Map.get(@headline, state, "Unknown state")
 
-  # The first step that is an action, not housekeeping.
-  defp next_step(report),
-    do:
-      Enum.find(
-        report.advice.do,
-        hd(report.advice.do),
-        &(&1.id not in [:stop_traffic, :keep_note])
-      )
-
-  # The rest of the steps, in their order; the next step is shown once, in its box.
-  defp other_steps(report), do: report.advice.do -- [next_step(report)]
+  # The first step is shown in its own box, the rest below it in their order.
+  defp next_step(report), do: hd(report.advice.do)
+  defp other_steps(report), do: tl(report.advice.do)
 
   @impl true
   def render(%{denied: true} = assigns) do
@@ -163,20 +133,17 @@ defmodule SpriteTriageWeb.TriageLive do
 
       <section class="pick" aria-labelledby="pick-h">
         <h2 id="pick-h">Sprite</h2>
-        <form id="triage-form" phx-submit="triage" phx-change="form">
+        <form id="triage-form" phx-submit="triage">
           <label for="name">Name</label>
           <input id="name" name="name" value={@name} autocomplete="off" required />
-          <label class="check">
-            <input type="checkbox" name="wake" value="true" checked={@wake} /> Also run <code>true</code> inside the Sprite (wakes it)
-          </label>
           <button type="submit" disabled={@running}>{if @running, do: "Checking…", else: "Run triage"}</button>
         </form>
         <p :if={@running} id="running" class="hint" role="status">
-          Waiting for the Sprite: up to a minute, and up to 45 s more with the command.
+          Waiting for the Sprite: up to a minute for <code>/check</code>, then up to 45 s for the command.
         </p>
         <p class="hint">
-          Triage reads the Sprites API and calls <code>/check</code>, which may wake the Sprite.
-          Commands run inside the Sprite only if you tick the box.
+          Triage reads the Sprites API and calls <code>/check</code>. When <code>/check</code> answers,
+          it runs <code>true</code> inside the Sprite once. Both can wake a sleeping Sprite.
         </p>
         <p :if={@error} class="error" role="alert">{@error}</p>
         <p :if={!@token?} id="no-token" class="error" role="alert">
@@ -223,7 +190,6 @@ defmodule SpriteTriageWeb.TriageLive do
 
           <details id="checked">
             <summary>What was checked</summary>
-            <p :if={@report.woke_sprite} class="hint">This triage called <code>/check</code>, which may have woken the Sprite.</p>
             <table id="observations">
               <thead><tr><th>Probe</th><th>Result</th><th>Time</th><th>fly-request-id</th></tr></thead>
               <tbody>
@@ -252,7 +218,6 @@ defmodule SpriteTriageWeb.TriageLive do
                 <button
                   phx-click="triage"
                   phx-value-name={s["name"]}
-                  phx-value-source="list"
                   disabled={@running}
                   aria-label={"Triage " <> s["name"]}
                 >

@@ -2,13 +2,13 @@ defmodule SpriteTriage do
   @moduledoc """
   Triage for a Sprite that stopped answering: what the signals say, what is safe to do
   next, and a short note for Fly support. It makes no recovery change: no restart, no
-  upgrade. `/check` and the optional exec of `true` can wake the Sprite, and the report
-  says when they may have.
+  upgrade. `/check` and the one exec of `true` can wake the Sprite, and the report says
+  when they may have.
 
-      SpriteTriage.triage("my-sprite", token: token, wake: true)
+      SpriteTriage.triage("my-sprite", token: token)
 
-  Options: `:token`, `:base_url`, `:wake` (default false), `:deadlines`, plus test hooks
-  (`:plug`, `:spawn`, `:exec`).
+  Options: `:token`, `:base_url`, `:deadlines`, plus test hooks (`:plug`, `:spawn`,
+  `:exec`).
   """
 
   alias SpriteTriage.{Advice, Classify, Note, Probe}

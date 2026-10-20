@@ -15,11 +15,10 @@ defmodule SpriteTriage.Classify do
     * `:start_failed`     – /check says the machine failed to start (28696, 28832)
     * `:control_only`     – the API answers, the machine does not (/check or exec timed
                             out or failed): the "wedged" pattern (28383, 28561, 28659)
-    * `:waking`           – /check says "machine in suspended state" and no command was
-                            run. Measured on real Sprites: the first /check after a quiet
-                            period answers this, and two minutes later it is healthy.
-    * `:ok`               – /check healthy (or suspended while a command inside ran), and
-                            the exec probe, if run, succeeded
+    * `:ok`               – /check answered and a command inside ran. /check may say
+                            "machine in suspended state": on real Sprites the first
+                            /check after a quiet period always did, while the Sprite was
+                            fine (docs/measurements.md).
     * `:unknown`          – anything else, including signals that contradict each other
   """
 
@@ -27,7 +26,6 @@ defmodule SpriteTriage.Classify do
 
   @type state ::
           :ok
-          | :waking
           | :start_failed
           | :storage_not_ready
           | :control_only
@@ -81,35 +79,32 @@ defmodule SpriteTriage.Classify do
           :check
         ])
 
-      suspended?(check) and is_nil(exec) ->
-        result(:waking, "/check: machine in suspended state (it is waking up)", [:check])
-
-      check != nil and not healthy?(check) and not suspended?(check) ->
+      not answered?(check) ->
         result(:unknown, "/check returned status #{inspect(check_status(check))}", [:check])
 
-      exec != nil and exec.outcome != :ok ->
+      is_nil(exec) ->
+        result(:unknown, "no command was run inside the Sprite", [:check])
+
+      exec.outcome != :ok ->
         result(:control_only, "the Sprites API and /check answer, exec #{describe(exec)}", [
           :check,
           :exec
         ])
 
       suspended?(check) ->
-        result(:ok, "/check said suspended while it woke up, and a command inside ran", [
+        result(:ok, "/check said suspended (it was waking up), and a command inside ran", [
           :check,
           :exec
         ])
 
-      check != nil ->
-        result(
-          :ok,
-          "/check healthy" <> if(exec, do: ", and a command inside ran", else: ""),
-          [:check] ++ List.wrap(exec && :exec)
-        )
-
       true ->
-        result(:unknown, "not enough signals (run /check)", [:sprite])
+        result(:ok, "/check healthy, and a command inside ran", [:check, :exec])
     end
   end
+
+  @doc "Whether /check answered healthy or suspended, so a command inside is worth one try."
+  def answered?(%Obs{outcome: :ok} = check), do: healthy?(check) or suspended?(check)
+  def answered?(_), do: false
 
   # On an answered call only the reason field counts, not unrelated metadata.
   defp storage_not_ready?(%Obs{outcome: :ok} = obs),
@@ -124,10 +119,9 @@ defmodule SpriteTriage.Classify do
 
   # Seen on every first /check after a quiet period: HTTP 200,
   # {"status": "needs_repair", "reason": "machine in suspended state"}.
-  defp suspended?(%Obs{outcome: :ok} = check),
+  # Only called for an answered /check.
+  defp suspended?(check),
     do: check_status(check) == "needs_repair" and check_reason(check) =~ ~r/suspended state/i
-
-  defp suspended?(_), do: false
 
   defp healthy?(check), do: check_status(check) == "healthy"
   defp check_status(%Obs{body: %{"status" => s}}), do: s

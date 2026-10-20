@@ -10,5 +10,7 @@ config :sprite_triage,
   api_options: [
     token: "test-token",
     plug: {Req.Test, SpriteTriage.ApiStub},
-    deadlines: [sprite: 300, check: 300, exec: 300]
+    deadlines: [sprite: 300, check: 300, exec: 300],
+    # The exec probe runs through the real guard, with the SDK call replaced.
+    spawn: &SpriteTriage.Stubs.spawn_ok/2
   ]

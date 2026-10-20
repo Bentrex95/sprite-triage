@@ -7,9 +7,8 @@ defmodule SpriteTriage.Demo do
     * `demo-healthy`       – reported `cold`, /check healthy (28288)
     * `demo-waking`        – /check answers "needs_repair: machine in suspended state", as
                              real Sprites did on every first wake after a quiet period;
-                             a command inside runs fine (own measurements)
-    * `demo-wedged`        – /check healthy, but a command inside hangs (28561, sprites-docs#230);
-                             only visible with the exec probe
+                             a command inside runs fine (docs/measurements.md)
+    * `demo-wedged`        – /check healthy, but a command inside hangs (28561, sprites-docs#230)
     * `demo-storage`       – /check answers 503 "Storage not ready" (28785, 28835)
     * `demo-start-failed`  – /check unhealthy, "failed to start machine" (28696)
   """

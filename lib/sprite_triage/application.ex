@@ -22,8 +22,15 @@ defmodule SpriteTriage.Application do
     result =
       Supervisor.start_link(children, strategy: :one_for_one, name: SpriteTriage.Supervisor)
 
-    if server?(), do: IO.puts("sprite-triage on #{SpriteTriageWeb.AccessKey.url()}")
+    if server?(), do: IO.puts(start_message())
     result
+  end
+
+  # A public demo runs behind its own host name, so a localhost address would mislead.
+  defp start_message do
+    if SpriteTriageWeb.AccessKey.open?(),
+      do: "sprite-triage public demo listening on port 4090",
+      else: "sprite-triage on #{SpriteTriageWeb.AccessKey.url()}"
   end
 
   defp server? do

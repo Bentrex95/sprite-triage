@@ -35,10 +35,8 @@ if config_env() != :test do
   end
 
   # The token is read from the environment only and never rendered or written to disk.
-  # A fresh key per start unless one is given (checked in AccessKey.setup!/0); it is
-  # printed with the URL. SPRITE_TRIAGE_DEMO swaps the API for the simulated one.
+  # SPRITE_TRIAGE_DEMO swaps the API for the simulated one.
   config :sprite_triage,
-    access_key: System.get_env("SPRITE_TRIAGE_KEY"),
     demo: System.get_env("SPRITE_TRIAGE_DEMO") == "true",
     public_demo: System.get_env("SPRITE_TRIAGE_PUBLIC_DEMO") == "true",
     api_options: [token: System.get_env("SPRITES_TOKEN")]

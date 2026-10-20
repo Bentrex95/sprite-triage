@@ -14,8 +14,8 @@ defmodule SpriteTriage.Advice do
 
   @forum "https://community.fly.io/t/"
   @docs_issue "https://github.com/superfly/sprites-docs/issues/"
-  # Not a link: measured by the author on real Sprites, October 2026.
-  @measured "measured on 7 real Sprites, 18 of 18 first checks, October 2026"
+  # Not a link: the table is docs/measurements.md in this repository.
+  @measured "own measurements: 18 of 18 first checks after a quiet period, October 2026"
 
   defp step(id, text, sources, counter \\ []),
     do: %{id: id, text: text, sources: sources, counter_sources: counter}
@@ -74,7 +74,7 @@ defmodule SpriteTriage.Advice do
         [@forum <> "28561", @forum <> "28696", @forum <> "28832"]
       )
 
-  @spec for_state(atom()) :: %{do: [map()], dont: [map()], escalate: boolean()}
+  @spec for_state(atom()) :: %{do: [map()], dont: [map()]}
   def for_state(:control_only),
     do: %{
       do: [
@@ -92,8 +92,7 @@ defmodule SpriteTriage.Advice do
           "28835"
         ])
       ],
-      dont: [no_more_restarts() | common_dont()],
-      escalate: false
+      dont: [no_more_restarts() | common_dont()]
     }
 
   def for_state(:start_failed),
@@ -109,8 +108,7 @@ defmodule SpriteTriage.Advice do
       dont: [
         dont(:no_restart, "Don't restart: it failed in both reports.", [@forum <> "28832"])
         | common_dont()
-      ],
-      escalate: true
+      ]
     }
 
   def for_state(:storage_not_ready),
@@ -130,23 +128,7 @@ defmodule SpriteTriage.Advice do
           [@forum <> "28785", @forum <> "28835"]
         )
         | common_dont()
-      ],
-      escalate: true
-    }
-
-  def for_state(:waking),
-    do: %{
-      do: [
-        step(
-          :wait_and_recheck,
-          "The Sprite was asleep and is waking up. Run the triage again in two minutes, or now with \"Also run true\" ticked. In 18 of 18 measured cases on real Sprites the first /check after a quiet period answered this way, and two minutes later it was healthy.",
-          [@measured]
-        )
-      ],
-      dont: [
-        dont(:no_restart_waking, "Don't restart a Sprite that is only waking up.", [@measured])
-      ],
-      escalate: false
+      ]
     }
 
   def for_state(:ok),
@@ -154,12 +136,17 @@ defmodule SpriteTriage.Advice do
       do: [
         step(
           :check_client,
-          "If your commands still hang, run the triage again with \"Also run true\" ticked: /check alone can look healthy while commands hang.",
-          [@docs_issue <> "230"]
+          "Nothing to fix on the Sprite: /check answered and a command ran inside it. If your own calls still fail, look at the client side: token, Sprite name, and connections left open from before.",
+          [@docs_issue <> "231"]
         )
       ],
-      dont: [],
-      escalate: false
+      dont: [
+        dont(
+          :no_restart_waking,
+          "Don't restart it because /check said \"machine in suspended state\": that is a Sprite waking up.",
+          [@measured]
+        )
+      ]
     }
 
   def for_state(:unknown_network),
@@ -175,8 +162,7 @@ defmodule SpriteTriage.Advice do
         dont(:no_restart_blind, "Don't restart yet: nothing shows the Sprite is the problem.", [
           @forum <> "28659"
         ])
-      ],
-      escalate: false
+      ]
     }
 
   def for_state(state) when state in [:auth_error, :not_found],
@@ -186,10 +172,9 @@ defmodule SpriteTriage.Advice do
           "https://docs.fly.io/sprites/"
         ])
       ],
-      dont: [],
-      escalate: false
+      dont: []
     }
 
   def for_state(:unknown),
-    do: %{do: [stop_traffic(), keep_note()], dont: common_dont(), escalate: false}
+    do: %{do: [stop_traffic(), keep_note()], dont: common_dont()}
 end

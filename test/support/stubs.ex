@@ -38,6 +38,17 @@ defmodule SpriteTriage.Stubs do
       "sprite_name" => "box"
     }
 
+  # Stand-ins for Sprites.spawn/3: the command process sends its exit to the process that
+  # spawned it, as Sprites.Command does. The default in config/test.exs exits with 0.
+  def spawn_ok(_name, _opts) do
+    ref = make_ref()
+    send(self(), {:exit, %{ref: ref}, 0})
+    {:ok, %{ref: ref, pid: spawn(fn -> :ok end)}}
+  end
+
+  def spawn_hanging(_name, _opts),
+    do: {:ok, %{ref: make_ref(), pid: spawn(fn -> Process.sleep(:infinity) end)}}
+
   defp route(%{method: "GET", request_path: "/v1/sprites"}), do: :list
 
   defp route(%{method: "GET", request_path: "/v1/sprites/" <> rest}),

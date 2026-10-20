@@ -3,7 +3,7 @@ defmodule SpriteTriage.AdviceNoteTest do
   alias SpriteTriage.{Advice, Note}
   alias SpriteTriage.Observation, as: O
 
-  @states ~w(ok waking start_failed storage_not_ready control_only unknown_network unknown auth_error not_found)a
+  @states ~w(ok start_failed storage_not_ready control_only unknown_network unknown auth_error not_found)a
 
   test "every step names at least one source" do
     for state <- @states, step <- Advice.for_state(state).do ++ Advice.for_state(state).dont do
@@ -24,15 +24,14 @@ defmodule SpriteTriage.AdviceNoteTest do
   test "start_failed and storage_not_ready go to support without a restart" do
     for state <- [:start_failed, :storage_not_ready] do
       advice = Advice.for_state(state)
-      assert advice.escalate
+      assert Enum.any?(advice.do, &(&1.id == :ask_support))
       refute Enum.any?(advice.do, &(&1.id == :restart_once))
     end
   end
 
-  test "a waking Sprite: wait and check again, no restart, no escalation" do
-    advice = Advice.for_state(:waking)
-    refute advice.escalate
-    assert [%{id: :wait_and_recheck}] = advice.do
+  test "a Sprite that answers: nothing to fix, and no restart because /check said suspended" do
+    advice = Advice.for_state(:ok)
+    assert [%{id: :check_client}] = advice.do
     assert Enum.any?(advice.dont, &(&1.id == :no_restart_waking))
   end
 
@@ -61,7 +60,7 @@ defmodule SpriteTriage.AdviceNoteTest do
 
   test "the note is short, names the ids of failing calls and asks to preserve data" do
     note = Note.render(report(:control_only, [@ok_sprite, @failed_check]))
-    assert length(String.split(note, "\n")) <= 12
+    assert length(String.split(note, "\n")) <= 8
     assert note =~ "sprite-1"
     assert note =~ "acme"
     assert note =~ "fly-request-id: check=01REQCHECK-cdg, sprite=01REQOK-cdg"
@@ -74,8 +73,8 @@ defmodule SpriteTriage.AdviceNoteTest do
     refute note =~ ~r/Failing since: 2026/
   end
 
-  test "no note where support cannot help: healthy, waking, wrong name or token" do
-    for state <- [:ok, :waking, :not_found, :auth_error] do
+  test "no note where support cannot help: Sprite answers, wrong name or token, API unreachable" do
+    for state <- [:ok, :not_found, :auth_error, :unknown_network] do
       assert Note.render(report(state, [@ok_sprite])) == nil, "#{state} got a note"
     end
   end
@@ -98,7 +97,7 @@ defmodule SpriteTriage.AdviceNoteTest do
     r = put_in(r.classification.reason, String.duplicate("long ", 100))
     note = Note.render(r)
 
-    assert length(String.split(note, "\n")) <= 12
+    assert length(String.split(note, "\n")) <= 8
     refute note =~ "\nState: ok"
     refute note =~ "\nInjected"
   end

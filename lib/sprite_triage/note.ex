@@ -1,11 +1,11 @@
 defmodule SpriteTriage.Note do
   @moduledoc """
-  The support note: at most 12 lines with what Fly support asked for in the forum
+  The support note: eight lines at most, with what Fly support asked for in the forum
   (Sprite name and id, organization, fly-request-id values, since when). Pure function.
   Only the person knows since when, so that line is left for them to fill in.
   Never contains a token. No name hashes: in thread 28659 hashing names made support look
-  at the wrong Sprite. There is no note where support cannot help: a healthy or waking
-  Sprite, a wrong name or token.
+  at the wrong Sprite. There is no note where support cannot help: a Sprite that
+  answers, a wrong name or token, or an API that this machine cannot reach.
 
   Every value is cleaned of control characters and cut to `@max_field` characters, so
   one odd name or error text cannot add lines or bury the rest.
@@ -15,7 +15,6 @@ defmodule SpriteTriage.Note do
   """
 
   @max_ids 5
-  @max_lines 12
   @max_field 120
 
   # Five minutes; configurable only so tests need not wait that long.
@@ -23,7 +22,7 @@ defmodule SpriteTriage.Note do
 
   @spec render(map()) :: String.t() | nil
   def render(%{classification: %{state: state}})
-      when state in [:ok, :waking, :not_found, :auth_error],
+      when state in [:ok, :unknown_network, :not_found, :auth_error],
       do: nil
 
   def render(report) do
@@ -41,21 +40,14 @@ defmodule SpriteTriage.Note do
       "Please preserve the filesystem and checkpoints."
     ]
     |> Enum.filter(&is_binary/1)
-    |> Enum.take(@max_lines)
     |> Enum.join("\n")
   end
 
-  @doc """
-  Stale from the moment the five minutes are up. `checked_at` is rounded down to the
-  second, so a note goes stale up to a second early, never late.
-  """
+  @doc "Whether the note is five minutes old or older."
   @spec stale?(map(), DateTime.t()) :: boolean()
-  def stale?(report, now), do: ms_left(report, now) <= 0
-
-  @doc "Milliseconds until the note goes stale (zero or negative once it has)."
-  def ms_left(report, now) do
+  def stale?(report, now) do
     {:ok, checked, _} = DateTime.from_iso8601(report.checked_at)
-    fresh_seconds() * 1000 - DateTime.diff(now, checked, :millisecond)
+    DateTime.diff(now, checked, :millisecond) >= fresh_seconds() * 1000
   end
 
   @doc false

@@ -46,7 +46,7 @@ th { color: var(--muted); font-weight: 500; }
 
 .state { border-left: 4px solid var(--warn); padding-left: .6rem; }
 .state-ok { border-color: var(--ok); }
-.state-waking, .state-unknown, .state-unknown_network { border-color: var(--warn); }
+.state-unknown, .state-unknown_network { border-color: var(--warn); }
 .state-storage_not_ready, .state-start_failed, .state-control_only { border-color: var(--bad); }
 .reason { margin-top: 0; }
 .error { color: var(--bad); }

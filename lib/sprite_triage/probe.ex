@@ -4,15 +4,15 @@ defmodule SpriteTriage.Probe do
   return in time is killed and recorded as `:timeout`, so one stuck call never blocks the
   others or the caller.
 
-  Default probes touch only the control plane plus `/check`, which Fly offers for health:
-  GET /v1/sprites/{name} and GET …/check. They run in parallel.
-
-  `wake: true` adds one exec of `true` inside the Sprite, after the others and only if the
-  control plane answered. It runs once and is never retried: in sprites-docs#231 a single
-  hung call kept a stuck Sprite busy, and #230 reports zombie exec sessions.
+  First GET /v1/sprites/{name} and GET …/check, in parallel. When /check answers healthy,
+  or says the machine is suspended (it is waking up), one exec of `true` follows: /check
+  alone looked healthy while commands hung (sprites-docs#230), and on real Sprites the
+  command told a waking Sprite from a stuck one. It runs once and is never retried, and not
+  at all when /check failed: the Sprite is then already known not to answer, and a hung
+  call keeps a stuck Sprite busy (sprites-docs#231).
   """
 
-  alias SpriteTriage.{Api, Exec, Observation}
+  alias SpriteTriage.{Api, Classify, Exec, Observation}
 
   @deadlines %{sprite: 15_000, check: 60_000, exec: 45_000}
 
@@ -30,8 +30,9 @@ defmodule SpriteTriage.Probe do
       ])
 
     sprite = Enum.find(observations, &(&1.probe == :sprite))
+    check = Enum.find(observations, &(&1.probe == :check))
 
-    if Keyword.get(opts, :wake, false) and sprite.outcome == :ok do
+    if sprite.outcome == :ok and Classify.answered?(check) do
       exec = Keyword.get(opts, :exec, &Exec.run_true/3)
       observations ++ parallel([{:exec, fn -> exec.(name, opts, d.exec) end, d.exec}])
     else
